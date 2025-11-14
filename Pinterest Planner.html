@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pinterest Planner - Amarra</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #f8f5f0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .header { text-align: center; padding: 30px 20px; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .header h1 { color: #1d3145; font-size: 2.5em; font-weight: 700; margin-bottom: 10px; }
+        .header p { color: #1d3145; opacity: 0.8; font-size: 1.1em; }
+
+        .tab-navigation { background: white; border-bottom: 2px solid #e0e0e0; padding: 0 20px; display: flex; gap: 5px; overflow-x: auto; }
+        .tab-btn { background: transparent; border: none; padding: 15px 25px; cursor: pointer; font-size: 1em; font-weight: 600; color: #666; border-bottom: 3px solid transparent; transition: all 0.2s; white-space: nowrap; }
+        .tab-btn:hover { color: #75a5cb; background: #f8f9fa; }
+        .tab-btn.active { color: #75a5cb; border-bottom-color: #75a5cb; background: #f8f9fa; }
+
+        .tab-content { display: none; padding: 30px 20px 100px; max-width: 1800px; margin: 0 auto; }
+        .tab-content.active { display: block; }
+
+        .section { background: white; border-radius: 16px; padding: 30px; margin-bottom: 30px; box-shadow: 0 4px 12px rgba(29, 49, 69, 0.1); }
+        .section h2 { color: #1d3145; font-size: 1.8em; margin-bottom: 20px; }
+
+        .calendar-tasks-grid { display: grid; grid-template-columns: 350px 1fr; gap: 30px; }
+
+        .tasks-card { background: white; border-radius: 16px; padding: 25px; box-shadow: 0 4px 12px rgba(29, 49, 69, 0.1); }
+        .circular-progress { position: relative; width: 120px; height: 120px; margin: 20px auto; }
+        .circular-progress svg { transform: rotate(-90deg); }
+        .circular-progress circle { fill: none; stroke-width: 10; }
+        .progress-bg { stroke: #e8f2f8; }
+        .progress-bar-circle { stroke: #75a5cb; stroke-linecap: round; transition: stroke-dashoffset 0.5s ease; }
+        .progress-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
+        .progress-percentage { font-size: 2em; font-weight: 700; color: #75a5cb; display: block; }
+        .progress-label { font-size: 0.75em; color: #666; }
+
+        .task-input-compact { display: flex; gap: 8px; margin-bottom: 15px; }
+        .task-input-compact input { flex: 1; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.9em; outline: none; }
+        .task-input-compact button { background: #75a5cb; color: white; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+        .task-list-compact { max-height: 300px; overflow-y: auto; }
+        .task-item-compact { display: flex; align-items: center; gap: 10px; padding: 10px; background: #f8f9fa; border-radius: 8px; margin-bottom: 8px; }
+        .task-item-compact.completed { opacity: 0.6; }
+        .task-item-compact.completed .task-text-compact { text-decoration: line-through; }
+        .task-checkbox-compact { width: 18px; height: 18px; cursor: pointer; accent-color: #75a5cb; }
+        .task-text-compact { flex: 1; color: #1d3145; font-size: 0.9em; }
+        .task-delete-compact { background: #ff4444; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75em; }
+
+        .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .calendar-controls { display: flex; gap: 10px; align-items: center; }
+        .calendar-controls button { background: #75a5cb; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+        .calendar-controls span { color: #1d3145; font-weight: 700; font-size: 1.2em; min-width: 150px; text-align: center; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+        .calendar-day-header { text-align: center; font-weight: 700; color: #1d3145; padding: 10px 5px; background: #e8f2f8; border-radius: 8px; font-size: 0.9em; }
+        .calendar-day { min-height: 100px; background: #f8f9fa; border-radius: 8px; padding: 8px; cursor: pointer; transition: all 0.2s; border: 2px solid transparent; display: flex; flex-direction: column; }
+        .calendar-day:hover { background: #e8f2f8; border-color: #75a5cb; }
+        .calendar-day.today { background: #75a5cb; color: white; font-weight: 700; }
+        .calendar-day.has-note { background: #d4e6f1; border-color: #75a5cb; }
+        .calendar-day.other-month { opacity: 0.3; pointer-events: none; }
+        .day-number { font-weight: 600; margin-bottom: 5px; color: #1d3145; }
+        .calendar-day.today .day-number { color: white; }
+        .day-note { font-size: 0.7em; color: #000; font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+        .calendar-day.today .day-note { color: white; }
+
+        .pin-planner-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px; }
+        .month-selector { display: flex; gap: 10px; align-items: center; }
+        .month-selector select { padding: 10px 15px; border: 2px solid #75a5cb; border-radius: 8px; font-size: 1em; font-weight: 600; color: #1d3145; outline: none; background: white; }
+
+        .pin-dates-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; }
+        .date-card { background: #f8f9fa; border: 2px solid #75a5cb; border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.2s; text-align: center; }
+        .date-card:hover { background: #e8f2f8; transform: translateY(-3px); box-shadow: 0 4px 12px rgba(117, 165, 203, 0.3); }
+        .date-card-date { font-size: 1.5em; font-weight: 700; color: #1d3145; margin-bottom: 5px; }
+        .date-card-month { font-size: 0.9em; color: #666; }
+        .date-card-pins { font-size: 0.85em; color: #75a5cb; margin-top: 8px; font-weight: 600; }
+
+        .pin-modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); overflow-y: auto; }
+        .pin-modal-content { background-color: white; margin: 3% auto; padding: 0; border-radius: 16px; width: 95%; max-width: 1400px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; }
+        .pin-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 25px 30px; background: #75a5cb; color: white; }
+        .pin-modal-header h3 { font-size: 1.8em; margin: 0; }
+        .pin-close-btn { font-size: 2em; cursor: pointer; color: white; background: none; border: none; width: 40px; height: 40px; border-radius: 50%; transition: all 0.2s; }
+        .pin-close-btn:hover { background: rgba(255,255,255,0.2); }
+        .pin-modal-body { padding: 30px; overflow-y: auto; flex: 1; }
+
+        .pin-item { background: #f8f9fa; border-radius: 12px; padding: 20px; margin-bottom: 20px; border-left: 4px solid #75a5cb; }
+        .pin-item-header { font-size: 1.2em; font-weight: 700; color: #1d3145; margin-bottom: 15px; }
+        .pin-field { margin-bottom: 15px; }
+        .pin-field label { display: block; color: #1d3145; font-weight: 600; margin-bottom: 6px; font-size: 0.9em; }
+        .pin-field input[type="text"], .pin-field textarea { width: 100%; padding: 10px 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.95em; outline: none; font-family: inherit; }
+        .pin-field textarea { min-height: 80px; resize: vertical; }
+        .pin-field input:focus, .pin-field textarea:focus { border-color: #75a5cb; background: white; }
+
+        .boards-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+        .board-field { margin-bottom: 0; }
+        .board-field label { font-size: 0.8em; }
+        .board-field input { padding: 8px 10px; font-size: 0.85em; }
+
+        .board-planner-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .add-board-card-btn { background: #75a5cb; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .add-board-card-btn:hover { background: #1d3145; transform: scale(1.05); }
+        .board-cards-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }
+        .board-card { background: #f8f9fa; border-radius: 12px; padding: 18px; border: 2px solid #75a5cb; position: relative; }
+        .board-card-delete { position: absolute; top: 8px; right: 8px; background: #ff4444; color: white; border: none; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; font-weight: bold; transition: all 0.2s; z-index: 10; font-size: 1.2em; }
+        .board-card-delete:hover { background: #cc0000; transform: scale(1.1); }
+        .category-field { margin-bottom: 12px; }
+        .category-field label { display: block; color: #1d3145; font-weight: 700; font-size: 0.9em; margin-bottom: 6px; }
+        .category-field input { width: 100%; padding: 8px 10px; border: 2px solid #75a5cb; border-radius: 8px; font-size: 0.95em; outline: none; background: white; }
+
+        .board-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        .board-table thead th { background: #75a5cb; color: white; padding: 10px 8px; text-align: left; font-weight: 600; font-size: 0.85em; border: 1px solid #5a8bb5; }
+        .board-table thead th:first-child { width: 35px; text-align: center; border-radius: 8px 0 0 0; }
+        .board-table thead th:last-child { width: 90px; border-radius: 0 8px 0 0; }
+        .board-table tbody td { padding: 6px 8px; border: 1px solid #e0e0e0; background: white; }
+        .board-number { text-align: center; font-weight: 600; color: #1d3145; font-size: 0.75em; }
+        .board-table input[type="text"] { width: 100%; border: none; outline: none; padding: 5px 6px; font-size: 0.8em; background: transparent; }
+        .board-table input:focus { background: #f8f9fa; border-radius: 4px; }
+
+        .report-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px; }
+        .date-selector { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .date-selector label { color: #1d3145; font-weight: 600; }
+        .date-selector input { padding: 8px 12px; border: 2px solid #75a5cb; border-radius: 8px; font-size: 0.95em; outline: none; }
+        .date-selector button, .report-actions button { background: #75a5cb; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
+        .date-selector button:hover, .report-actions button:hover { background: #1d3145; }
+
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
+        .metric-card { background: #f8f9fa; border-radius: 12px; padding: 20px; border: 2px solid #e8f2f8; transition: all 0.3s; min-height: 120px; }
+        .metric-card:hover { border-color: #75a5cb; transform: translateY(-3px); box-shadow: 0 4px 12px rgba(117, 165, 203, 0.2); }
+        .metric-label { color: #1d3145; font-size: 0.85em; font-weight: 600; margin-bottom: 12px; text-transform: uppercase; }
+        .metric-value input { width: 100%; font-size: 1.8em; font-weight: 700; color: #75a5cb; border: none; background: white; padding: 8px; border-radius: 8px; outline: none; }
+        .report-actions { margin-top: 25px; display: flex; gap: 10px; justify-content: flex-end; }
+        .report-actions button { padding: 12px 24px; }
+
+        .report-item { background: #f8f9fa; border-radius: 8px; padding: 20px; margin-bottom: 15px; border-left: 4px solid #75a5cb; cursor: pointer; transition: all 0.2s; }
+        .report-item:hover { background: #e8f2f8; transform: translateX(5px); }
+        .report-item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .report-date { font-weight: 700; color: #1d3145; font-size: 1.1em; }
+        .report-summary { color: #666; font-size: 0.9em; }
+        .report-delete { background: #ff4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85em; font-weight: 600; }
+
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background-color: white; margin: 5% auto; padding: 30px; border-radius: 16px; width: 90%; max-width: 600px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-header h3 { color: #1d3145; font-size: 1.5em; }
+        .close-btn { font-size: 2em; cursor: pointer; color: #666; }
+        .modal-body label { display: block; color: #1d3145; font-weight: 600; margin-bottom: 8px; margin-top: 15px; }
+        .modal-body textarea, .modal-body input[type="text"] { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1em; outline: none; font-family: inherit; }
+        .modal-body textarea { min-height: 100px; resize: vertical; }
+        .modal-actions { margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end; }
+        .modal-actions button { padding: 12px 24px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+        .btn-save { background: #75a5cb; color: white; }
+        .btn-cancel { background: #e0e0e0; color: #1d3145; }
+
+        .save-button { position: fixed; bottom: 20px; right: 20px; background: #75a5cb; color: white; border: none; padding: 12px 24px; border-radius: 25px; font-size: 1em; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(117, 165, 203, 0.3); z-index: 999; }
+
+        @media (max-width: 1200px) {
+            .calendar-tasks-grid { grid-template-columns: 1fr; }
+            .board-cards-container { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+            .boards-row { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 768px) {
+            .board-cards-container { grid-template-columns: 1fr; }
+            .pin-dates-list { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📌 Pinterest Planner</h1>
+        <p>Content calendar and analytics tracker for Amarra</p>
+    </div>
+
+    <div class="tab-navigation">
+        <button class="tab-btn active" onclick="switchTab('calendar-tasks')">📅 Calendar & Tasks</button>
+        <button class="tab-btn" onclick="switchTab('pin-planner')">📍 Pin Planner</button>
+        <button class="tab-btn" onclick="switchTab('board-planner')">📋 Board Planner</button>
+        <button class="tab-btn" onclick="switchTab('monthly-report')">📊 Monthly Report</button>
+        <button class="tab-btn" onclick="switchTab('saved-history')">📋 Saved History</button>
+    </div>
+
+    <div id="calendar-tasks" class="tab-content active">
+        <div class="calendar-tasks-grid">
+            <div class="tasks-card">
+                <h2>✅ Tasks Today</h2>
+                <div class="circular-progress">
+                    <svg width="120" height="120">
+                        <circle class="progress-bg" cx="60" cy="60" r="52"></circle>
+                        <circle class="progress-bar-circle" cx="60" cy="60" r="52" id="progressCircle" stroke-dasharray="326.73" stroke-dashoffset="326.73"></circle>
+                    </svg>
+                    <div class="progress-text">
+                        <span class="progress-percentage" id="progressPercentage">0%</span>
+                        <span class="progress-label" id="progressCount">0 / 0</span>
+                    </div>
+                </div>
+                <div class="task-input-compact">
+                    <input type="text" id="taskInput" placeholder="Add task...">
+                    <button onclick="addTask()">Add</button>
+                </div>
+                <div class="task-list-compact" id="taskList"></div>
+            </div>
+
+            <div class="section">
+                <div class="calendar-header">
+                    <h2>📅 Content Calendar</h2>
+                    <div class="calendar-controls">
+                        <button onclick="previousMonth()">◀</button>
+                        <span id="currentMonth">November 2025</span>
+                        <button onclick="nextMonth()">▶</button>
+                    </div>
+                </div>
+                <div class="calendar-grid" id="calendar"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="pin-planner" class="tab-content">
+        <div class="section">
+            <div class="pin-planner-header">
+                <h2>📍 Pin Planner (Click any date to plan 20 pins)</h2>
+                <div class="month-selector">
+                    <label>Month:</label>
+                    <select id="pinMonthSelect" onchange="renderPinPlanner()">
+                        <option value="0">January</option>
+                        <option value="1">February</option>
+                        <option value="2">March</option>
+                        <option value="3">April</option>
+                        <option value="4">May</option>
+                        <option value="5">June</option>
+                        <option value="6">July</option>
+                        <option value="7">August</option>
+                        <option value="8">September</option>
+                        <option value="9">October</option>
+                        <option value="10">November</option>
+                        <option value="11">December</option>
+                    </select>
+                </div>
+            </div>
+            <div class="pin-dates-list" id="pinDatesList"></div>
+        </div>
+    </div>
+
+    <div id="board-planner" class="tab-content">
+        <div class="section">
+            <div class="board-planner-header">
+                <h2>📋 Board Planner</h2>
+                <button class="add-board-card-btn" onclick="addBoardCard()">➕ Add New Board Card</button>
+            </div>
+            <div class="board-cards-container" id="boardCardsContainer"></div>
+        </div>
+    </div>
+
+    <div id="monthly-report" class="tab-content">
+        <div class="section">
+            <div class="report-header">
+                <h2>📊 Monthly Report</h2>
+                <div class="date-selector">
+                    <label>From:</label>
+                    <input type="date" id="startDate">
+                    <label>To:</label>
+                    <input type="date" id="endDate">
+                </div>
+            </div>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">📌 Pins Saved</div>
+                    <div class="metric-value"><input type="number" id="pinsSaved" value="0" min="0"></div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">📊 Total Pins</div>
+                    <div class="metric-value"><input type="number" id="totalPins" value="0" min="0"></div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">📋 Total Boards</div>
+                    <div class="metric-value"><input type="number" id="totalBoards" value="0" min="0"></div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">👥 Group Boards</div>
+                    <div class="metric-value"><input type="number" id="groupBoards" value="0" min="0"></div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">➕ Followers Gained</div>
+                    <div class="metric-value"><input type="number" id="followersGained" value="0" min="0"></div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">👤 Followers to Date</div>
+                    <div class="metric-value"><input type="number" id="followersTotal" value="0" min="0"></div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">🎨 Pins Designed</div>
+                    <div class="metric-value"><input type="number" id="pinsDesigned" value="0" min="0"></div>
+                </div>
+            </div>
+            <div class="report-actions">
+                <button onclick="saveReport()">💾 Save This Report</button>
+                <button onclick="exportReport()">📄 Export Report</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="saved-history" class="tab-content">
+        <div class="section">
+            <h2>📋 Saved History</h2>
+            <div id="reportsList"></div>
+        </div>
+    </div>
+
+    <div id="noteModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Add Note</h3>
+                <span class="close-btn" onclick="closeModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <label>Note / Description:</label>
+                <textarea id="noteText" placeholder="E.g., Post 5 prom dress pins"></textarea>
+                <label>📎 Attach Link:</label>
+                <input type="text" id="noteLink" placeholder="https://...">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+                <button class="btn-save" onclick="saveNote()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="pinModal" class="pin-modal">
+        <div class="pin-modal-content">
+            <div class="pin-modal-header">
+                <h3 id="pinModalTitle">Plan 20 Pins</h3>
+                <button class="pin-close-btn" onclick="closePinModal()">&times;</button>
+            </div>
+            <div class="pin-modal-body" id="pinModalBody"></div>
+        </div>
+    </div>
+
+    <button class="save-button" onclick="saveData()">💾 Save</button>
+
+    <script>
+        let currentDate = new Date();
+        let tasks = [];
+        let calendarNotes = {};
+        let savedReports = [];
+        let boardCards = [];
+        let pinPlans = {};
+        let currentEditDate = null;
+        let currentPinDate = null;
+
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        const daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        const PINS_PER_DAY = 20;
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function renderPinPlanner() {
+            const month = parseInt(document.getElementById('pinMonthSelect').value);
+            const year = 2025;
+            const days = daysInMonth[month];
+            const container = document.getElementById('pinDatesList');
+
+            let html = '';
+            for (let day = 1; day <= days; day++) {
+                let filledPins = 0;
+                for (let pinNum = 1; pinNum <= PINS_PER_DAY; pinNum++) {
+                    const dateKey = `${year}-${month}-${day}-${pinNum}`;
+                    const pin = pinPlans[dateKey];
+                    if (pin && (pin.blogUrl || pin.title || pin.description)) filledPins++;
+                }
+
+                html += `<div class="date-card" onclick="openPinModal(${year}, ${month}, ${day})">
+                    <div class="date-card-date">${day}</div>
+                    <div class="date-card-month">${monthNames[month]}</div>
+                    <div class="date-card-pins">${filledPins} / 20 pins</div>
+                </div>`;
+            }
+            container.innerHTML = html;
+        }
+
+        function openPinModal(year, month, day) {
+            currentPinDate = { year, month, day };
+            document.getElementById('pinModalTitle').textContent = `Plan 20 Pins for ${monthNames[month]} ${day}, ${year}`;
+
+            let html = '';
+            for (let pinNum = 1; pinNum <= PINS_PER_DAY; pinNum++) {
+                const dateKey = `${year}-${month}-${day}-${pinNum}`;
+                const pin = pinPlans[dateKey] || { blogUrl: '', title: '', description: '', imageUrl: '', boards: ['', '', '', '', '', '', '', '', '', ''] };
+
+                html += `<div class="pin-item">
+                    <div class="pin-item-header">📌 Pin ${pinNum}</div>
+                    <div class="pin-field">
+                        <label>Blog Post URL:</label>
+                        <input type="text" value="${pin.blogUrl}" onchange="updatePinField('${dateKey}', 'blogUrl', this.value)" placeholder="https://...">
+                    </div>
+                    <div class="pin-field">
+                        <label>Pin Title:</label>
+                        <input type="text" value="${pin.title}" onchange="updatePinField('${dateKey}', 'title', this.value)" placeholder="Enter pin title">
+                    </div>
+                    <div class="pin-field">
+                        <label>Pin Description:</label>
+                        <textarea onchange="updatePinField('${dateKey}', 'description', this.value)" placeholder="Enter pin description">${pin.description}</textarea>
+                    </div>
+                    <div class="pin-field">
+                        <label>Pin Image URL:</label>
+                        <input type="text" value="${pin.imageUrl}" onchange="updatePinField('${dateKey}', 'imageUrl', this.value)" placeholder="https://...">
+                    </div>
+                    <div class="boards-row">
+                        ${Array(10).fill(0).map((_, i) => `<div class="board-field">
+                            <label>Board ${i + 1}:</label>
+                            <input type="text" value="${pin.boards[i]}" onchange="updatePinBoard('${dateKey}', ${i}, this.value)" placeholder="Board ${i + 1}">
+                        </div>`).join('')}
+                    </div>
+                </div>`;
+            }
+
+            document.getElementById('pinModalBody').innerHTML = html;
+            document.getElementById('pinModal').style.display = 'block';
+        }
+
+        function closePinModal() {
+            document.getElementById('pinModal').style.display = 'none';
+            renderPinPlanner();
+        }
+
+        function updatePinField(dateKey, field, value) {
+            if (!pinPlans[dateKey]) pinPlans[dateKey] = { blogUrl: '', title: '', description: '', imageUrl: '', boards: ['', '', '', '', '', '', '', '', '', ''] };
+            pinPlans[dateKey][field] = value;
+        }
+
+        function updatePinBoard(dateKey, boardIndex, value) {
+            if (!pinPlans[dateKey]) pinPlans[dateKey] = { blogUrl: '', title: '', description: '', imageUrl: '', boards: ['', '', '', '', '', '', '', '', '', ''] };
+            pinPlans[dateKey].boards[boardIndex] = value;
+        }
+
+        function addBoardCard() {
+            boardCards.push({ id: Date.now(), category: '', boards: Array(10).fill(null).map(() => ({ title: '', date: '' })) });
+            renderBoardCards();
+        }
+
+        function deleteBoardCard(id) {
+            if (confirm('Delete this board card?')) {
+                boardCards = boardCards.filter(card => card.id !== id);
+                renderBoardCards();
+            }
+        }
+
+        function updateBoardCard(id, field, value) {
+            const card = boardCards.find(c => c.id === id);
+            if (card) card[field] = value;
+        }
+
+        function updateBoardItem(cardId, index, field, value) {
+            const card = boardCards.find(c => c.id === cardId);
+            if (card && card.boards[index]) card.boards[index][field] = value;
+        }
+
+        function renderBoardCards() {
+            const container = document.getElementById('boardCardsContainer');
+            if (boardCards.length === 0) {
+                container.innerHTML = '<p style="color: #666; text-align: center; padding: 40px;">No board cards yet.</p>';
+                return;
+            }
+
+            container.innerHTML = boardCards.map(card => `<div class="board-card">
+                <button class="board-card-delete" onclick="deleteBoardCard(${card.id})">×</button>
+                <div class="category-field">
+                    <label>Main Category/Keyword:</label>
+                    <input type="text" value="${card.category}" onchange="updateBoardCard(${card.id}, 'category', this.value)" placeholder="E.g., Prom Dresses">
+                </div>
+                <table class="board-table">
+                    <thead><tr><th></th><th>Board Title</th><th>Date</th></tr></thead>
+                    <tbody>${card.boards.map((board, index) => `<tr>
+                        <td class="board-number">${index + 1}</td>
+                        <td><input type="text" value="${board.title}" onchange="updateBoardItem(${card.id}, ${index}, 'title', this.value)" placeholder="Board Title"></td>
+                        <td><input type="text" value="${board.date}" onchange="updateBoardItem(${card.id}, ${index}, 'date', this.value)" placeholder="MM/DD/YY"></td>
+                    </tr>`).join('')}</tbody>
+                </table>
+            </div>`).join('');
+        }
+
+        function saveReport() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            if (!startDate || !endDate) { alert('Please select dates'); return; }
+            savedReports.push({
+                id: Date.now(), startDate, endDate,
+                pinsSaved: document.getElementById('pinsSaved').value,
+                totalPins: document.getElementById('totalPins').value,
+                totalBoards: document.getElementById('totalBoards').value,
+                groupBoards: document.getElementById('groupBoards').value,
+                followersGained: document.getElementById('followersGained').value,
+                followersTotal: document.getElementById('followersTotal').value,
+                pinsDesigned: document.getElementById('pinsDesigned').value
+            });
+            saveData();
+            renderReports();
+            alert('✅ Report saved!');
+        }
+
+        function renderReports() {
+            const list = document.getElementById('reportsList');
+            if (savedReports.length === 0) {
+                list.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">No saved reports yet.</p>';
+                return;
+            }
+            list.innerHTML = savedReports.map(report => `<div class="report-item" onclick="loadReport(${report.id})">
+                <div class="report-item-header">
+                    <div class="report-date">${report.startDate} to ${report.endDate}</div>
+                    <button class="report-delete" onclick="event.stopPropagation(); deleteReport(${report.id})">Delete</button>
+                </div>
+                <div class="report-summary">Pins: ${report.totalPins} | Boards: ${report.totalBoards} | Followers: ${report.followersTotal}</div>
+            </div>`).reverse().join('');
+        }
+
+        function loadReport(id) {
+            const report = savedReports.find(r => r.id === id);
+            if (report) {
+                document.getElementById('startDate').value = report.startDate;
+                document.getElementById('endDate').value = report.endDate;
+                document.getElementById('pinsSaved').value = report.pinsSaved;
+                document.getElementById('totalPins').value = report.totalPins;
+                document.getElementById('totalBoards').value = report.totalBoards;
+                document.getElementById('groupBoards').value = report.groupBoards;
+                document.getElementById('followersGained').value = report.followersGained;
+                document.getElementById('followersTotal').value = report.followersTotal;
+                document.getElementById('pinsDesigned').value = report.pinsDesigned;
+                switchTab('monthly-report');
+            }
+        }
+
+        function deleteReport(id) {
+            if (confirm('Delete this report?')) {
+                savedReports = savedReports.filter(r => r.id !== id);
+                saveData();
+                renderReports();
+            }
+        }
+
+        function exportReport() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            if (!startDate || !endDate) { alert('Please select dates'); return; }
+            let report = `PINTEREST REPORT - AMARRA\nPeriod: ${startDate} to ${endDate}\n${'='.repeat(50)}\n`;
+            report += `Pins Saved: ${document.getElementById('pinsSaved').value}\n`;
+            report += `Total Pins: ${document.getElementById('totalPins').value}\n`;
+            report += `Total Boards: ${document.getElementById('totalBoards').value}\n`;
+            report += `Followers Gained: ${document.getElementById('followersGained').value}\n`;
+
+            const blob = new Blob([report], { type: 'text/plain' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `Pinterest_Report_${startDate}_to_${endDate}.txt`;
+            a.click();
+        }
+
+        function renderCalendar() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const prevMonthDays = new Date(year, month, 0).getDate();
+
+            document.getElementById('currentMonth').textContent = `${monthNames[month]} ${year}`;
+            const calendar = document.getElementById('calendar');
+            calendar.innerHTML = '';
+
+            ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach(day => {
+                const header = document.createElement('div');
+                header.className = 'calendar-day-header';
+                header.textContent = day;
+                calendar.appendChild(header);
+            });
+
+            for (let i = firstDay - 1; i >= 0; i--) {
+                const day = document.createElement('div');
+                day.className = 'calendar-day other-month';
+                day.innerHTML = `<div class="day-number">${prevMonthDays - i}</div>`;
+                calendar.appendChild(day);
+            }
+
+            const today = new Date();
+            for (let i = 1; i <= daysInMonth; i++) {
+                const day = document.createElement('div');
+                day.className = 'calendar-day';
+                const dateKey = `${year}-${month}-${i}`;
+                const note = calendarNotes[dateKey] || { text: '', link: '' };
+
+                if (note.text || note.link) day.classList.add('has-note');
+                if (i === today.getDate() && month === today.getMonth() && year === today.getFullYear()) day.classList.add('today');
+
+                day.innerHTML = `<div class="day-number">${i}</div><div class="day-note">${note.text || ''}</div>`;
+                day.onclick = () => openModal(year, month, i);
+                calendar.appendChild(day);
+            }
+
+            const totalCells = calendar.children.length - 7;
+            for (let i = 1; i <= 42 - totalCells; i++) {
+                const day = document.createElement('div');
+                day.className = 'calendar-day other-month';
+                day.innerHTML = `<div class="day-number">${i}</div>`;
+                calendar.appendChild(day);
+            }
+        }
+
+        function previousMonth() { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); }
+        function nextMonth() { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); }
+
+        function openModal(year, month, day) {
+            currentEditDate = `${year}-${month}-${day}`;
+            document.getElementById('modalTitle').textContent = `${monthNames[month]} ${day}, ${year}`;
+            const note = calendarNotes[currentEditDate] || { text: '', link: '' };
+            document.getElementById('noteText').value = note.text || '';
+            document.getElementById('noteLink').value = note.link || '';
+            document.getElementById('noteModal').style.display = 'block';
+        }
+
+        function closeModal() { document.getElementById('noteModal').style.display = 'none'; }
+
+        function saveNote() {
+            const text = document.getElementById('noteText').value.trim();
+            const link = document.getElementById('noteLink').value.trim();
+            if (!text && !link) delete calendarNotes[currentEditDate];
+            else calendarNotes[currentEditDate] = { text, link };
+            closeModal();
+            renderCalendar();
+        }
+
+        function addTask() {
+            const input = document.getElementById('taskInput');
+            if (input.value.trim()) {
+                tasks.push({ id: Date.now(), text: input.value.trim(), completed: false });
+                input.value = '';
+                renderTasks();
+                updateProgress();
+            }
+        }
+
+        function toggleTask(id) {
+            const task = tasks.find(t => t.id === id);
+            if (task) { task.completed = !task.completed; renderTasks(); updateProgress(); }
+        }
+
+        function deleteTask(id) { tasks = tasks.filter(t => t.id !== id); renderTasks(); updateProgress(); }
+
+        function renderTasks() {
+            document.getElementById('taskList').innerHTML = tasks.map(task => `<div class="task-item-compact ${task.completed ? 'completed' : ''}">
+                <input type="checkbox" class="task-checkbox-compact" ${task.completed ? 'checked' : ''} onchange="toggleTask(${task.id})">
+                <div class="task-text-compact">${task.text}</div>
+                <button class="task-delete-compact" onclick="deleteTask(${task.id})">×</button>
+            </div>`).join('');
+        }
+
+        function updateProgress() {
+            const completed = tasks.filter(t => t.completed).length;
+            const total = tasks.length;
+            const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+            const circumference = 326.73;
+            const offset = circumference - (percentage / 100) * circumference;
+
+            document.getElementById('progressCircle').style.strokeDashoffset = offset;
+            document.getElementById('progressPercentage').textContent = `${percentage}%`;
+            document.getElementById('progressCount').textContent = `${completed} / ${total}`;
+        }
+
+        function saveData() {
+            localStorage.setItem('pinterestPlannerData', JSON.stringify({
+                pinsSaved: document.getElementById('pinsSaved').value,
+                totalPins: document.getElementById('totalPins').value,
+                totalBoards: document.getElementById('totalBoards').value,
+                groupBoards: document.getElementById('groupBoards').value,
+                followersGained: document.getElementById('followersGained').value,
+                followersTotal: document.getElementById('followersTotal').value,
+                pinsDesigned: document.getElementById('pinsDesigned').value,
+                tasks, calendarNotes, savedReports, boardCards, pinPlans
+            }));
+            alert('✅ Saved!');
+        }
+
+        function loadData() {
+            const saved = localStorage.getItem('pinterestPlannerData');
+            if (saved) {
+                const data = JSON.parse(saved);
+                document.getElementById('pinsSaved').value = data.pinsSaved || 0;
+                document.getElementById('totalPins').value = data.totalPins || 0;
+                document.getElementById('totalBoards').value = data.totalBoards || 0;
+                document.getElementById('groupBoards').value = data.groupBoards || 0;
+                document.getElementById('followersGained').value = data.followersGained || 0;
+                document.getElementById('followersTotal').value = data.followersTotal || 0;
+                document.getElementById('pinsDesigned').value = data.pinsDesigned || 0;
+                tasks = data.tasks || [];
+                calendarNotes = data.calendarNotes || {};
+                savedReports = data.savedReports || [];
+                boardCards = data.boardCards || [];
+                pinPlans = data.pinPlans || {};
+                renderTasks();
+                renderCalendar();
+                renderReports();
+                renderBoardCards();
+                renderPinPlanner();
+            }
+        }
+
+        window.onclick = function(event) {
+            if (event.target == document.getElementById('noteModal')) closeModal();
+            if (event.target == document.getElementById('pinModal')) closePinModal();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const now = new Date();
+            document.getElementById('startDate').valueAsDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            document.getElementById('endDate').valueAsDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            document.getElementById('pinMonthSelect').value = now.getMonth();
+            loadData();
+            renderCalendar();
+            updateProgress();
+            document.getElementById('taskInput').addEventListener('keypress', e => { if (e.key === 'Enter') addTask(); });
+        });
+    </script>
+</body>
+</html>
